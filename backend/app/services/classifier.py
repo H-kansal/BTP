@@ -11,6 +11,7 @@ from torchvision import transforms
 
 from app.config import config
 from app.models.classifier_model import WeatherClassifier
+from app.utils.checkpoint import load_weights
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +27,11 @@ class ClassifierService:
     """
 
     def __init__(self) -> None:
-        self.model: WeatherClassifier | None = None
+        self.model: torch.nn.Module | None = None
+        self.weights_loaded: bool = False
         self._transform = transforms.Compose([
-            transforms.Resize((config.IMAGE_SIZE, config.IMAGE_SIZE)),
+            transforms.Resize(config.CLASSIFIER_RESIZE),
+            transforms.CenterCrop(config.CLASSIFIER_SIZE),
             transforms.ToTensor(),
             transforms.Normalize(mean=config.IMAGENET_MEAN, std=config.IMAGENET_STD),
         ])
@@ -42,13 +45,15 @@ class ClassifierService:
         self.model = WeatherClassifier(num_classes=config.NUM_CLASSES)
 
         if weights_path.exists():
-            state_dict = torch.load(weights_path, map_location=config.DEVICE, weights_only=True)
-            self.model.load_state_dict(state_dict)
+            load_weights(self.model, weights_path, config.DEVICE)
+            self.weights_loaded = True
             logger.info("Classifier weights loaded from %s", weights_path)
+        elif config.ALLOW_RANDOM_WEIGHTS:
+            logger.warning("Classifier weights missing at %s – RANDOM weights (dev mode)", weights_path)
         else:
-            logger.warning(
-                "Classifier weights not found at %s – running with random weights",
-                weights_path,
+            raise FileNotFoundError(
+                f"Classifier weights not found: {weights_path}. "
+                "Copy your trained file there or set ALLOW_RANDOM_WEIGHTS=1 for dev."
             )
 
         self.model.to(config.DEVICE)
@@ -57,24 +62,16 @@ class ClassifierService:
     # ── inference ───────────────────────────────────────────────────────
 
     @torch.no_grad()
-    def classify(self, image: Image.Image) -> str:
-        """Classify a PIL Image into one of the weather-degradation classes.
-
-        Args:
-            image: An RGB PIL Image of arbitrary size (will be resized).
-
-        Returns:
-            The predicted class name: ``"rain"``, ``"fog"``, or ``"low_light"``.
-
-        Raises:
-            RuntimeError: If :py:meth:`load` has not been called yet.
-        """
+    def classify_with_confidence(self, image: Image.Image) -> tuple[str, float]:
+        """Return ``(label, softmax_confidence)`` for a PIL image."""
         if self.model is None:
             raise RuntimeError("ClassifierService has not been loaded. Call load() first.")
 
-        tensor: torch.Tensor = self._transform(image.convert("RGB"))
-        tensor = tensor.unsqueeze(0).to(config.DEVICE)
+        tensor: torch.Tensor = self._transform(image.convert("RGB")).unsqueeze(0).to(config.DEVICE)
+        probs = torch.softmax(self.model(tensor), dim=1)[0]
+        idx = int(probs.argmax().item())
+        return config.CLASS_NAMES[idx], float(probs[idx].item())
 
-        logits: torch.Tensor = self.model(tensor)
-        predicted_idx: int = int(logits.argmax(dim=1).item())
-        return config.CLASS_NAMES[predicted_idx]
+    def classify(self, image: Image.Image) -> str:
+        """Return only the predicted class name: ``"rain"``, ``"fog"`` or ``"low_light"``."""
+        return self.classify_with_confidence(image)[0]

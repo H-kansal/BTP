@@ -13,7 +13,7 @@ from torchvision import transforms
 from app.config import config
 
 
-def pil_to_tensor(image: Image.Image, normalize: bool = True) -> torch.Tensor:
+def pil_to_tensor(image: Image.Image, normalize: bool = True, size: int | None = None) -> torch.Tensor:
     """Convert a PIL Image to a float tensor on the configured device.
 
     Args:
@@ -27,7 +27,7 @@ def pil_to_tensor(image: Image.Image, normalize: bool = True) -> torch.Tensor:
         A ``(1, 3, H, W)`` tensor on :pyattr:`config.DEVICE`.
     """
     transform_steps: list[transforms.transforms._BasicTransform] = [
-        transforms.Resize((config.IMAGE_SIZE, config.IMAGE_SIZE)),
+        transforms.Resize((size or config.IMAGE_SIZE, size or config.IMAGE_SIZE)),
         transforms.ToTensor(),
     ]
     if normalize:

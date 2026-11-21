@@ -82,12 +82,24 @@ app.mount("/outputs", StaticFiles(directory=str(config.OUTPUT_DIR)), name="outpu
 
 
 @app.get("/", tags=["health"])
-@app.get("/api", tags=["health"])
-@app.get("/api/health", tags=["health"])
 async def root() -> dict:
     """Health-check / welcome endpoint."""
     return {
-        "status": "ok",
         "message": "Adverse-Weather Enhancement API is running",
         "device": str(config.DEVICE),
+    }
+
+
+@app.get("/health", tags=["health"])
+@app.get("/api/health", tags=["health"])
+@app.get("/api", tags=["health"])
+async def health() -> dict:
+    """Report whether each trained weight file was actually loaded."""
+    clf = app.state.classifier
+    enh = app.state.enhancer
+    return {
+        "device": str(config.DEVICE),
+        "class_order": config.CLASS_NAMES,
+        "classifier_weights_loaded": clf.weights_loaded,
+        "enhancer_weights_loaded": enh.weights_loaded,
     }

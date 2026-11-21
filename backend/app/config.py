@@ -20,9 +20,22 @@ class Config:
     WEIGHTS_DIR: Path = BASE_DIR / "app" / "weights"
 
     # ── Model settings ──────────────────────────────────────────────────
-    IMAGE_SIZE: int = 512
+    IMAGE_SIZE: int = 512          # working size for frames/videos
+    CLASSIFIER_SIZE: int = 224     # classifier input size (CenterCrop) – from Classification/inference.py
+    CLASSIFIER_RESIZE: int = 256   # shorter side is resized to this before the crop
     NUM_CLASSES: int = 3
-    CLASS_NAMES: list[str] = ["rain", "fog", "low_light"]
+
+    # !! Must be in the SAME ORDER as the label indices used in training !!
+    # torchvision ImageFolder sorts folders alphabetically, so folders named
+    # fog/ low_light/ rain/ give index 0,1,2 = fog, low_light, rain.
+    CLASS_NAMES: list[str] = ["fog", "low_light", "rain"]
+
+    # Below this softmax confidence the classifier result is flagged as uncertain.
+    CONFIDENCE_THRESHOLD: float = 0.6
+
+    # Dev switch: set ALLOW_RANDOM_WEIGHTS=1 to start without trained weights
+    # (outputs will be garbage). Default: refuse to start with missing weights.
+    ALLOW_RANDOM_WEIGHTS: bool = os.getenv("ALLOW_RANDOM_WEIGHTS", "0") == "1"
 
     # ImageNet normalisation statistics used by the classifier
     IMAGENET_MEAN: list[float] = [0.485, 0.456, 0.406]
@@ -30,10 +43,15 @@ class Config:
 
     # ── Weight file names ───────────────────────────────────────────────
     CLASSIFIER_WEIGHTS: str = "classifier.pth"
-    ENHANCER_WEIGHTS: dict[str, str] = {
-        "rain": "rain_enhancer.pth",
-        "fog": "fog_enhancer.pth",
-        "low_light": "lowlight_enhancer.pth",
+    # One entry per class. "norm" and "size" MUST match each model's train_opt.txt
+    # (--norm and the resolution it was trained at):
+    #   rain      : norm=batch,    trained at 512
+    #   low_light : norm=batch,    trained at 512
+    #   fog       : norm=instance, trained at 256
+    ENHANCERS: dict[str, dict] = {
+        "rain":      {"weights": "rain_enhancer.pth",     "norm": "batch",    "size": 512},
+        "fog":       {"weights": "fog_enhancer.pth",      "norm": "instance", "size": 256},
+        "low_light": {"weights": "lowlight_enhancer.pth", "norm": "batch",    "size": 512},
     }
 
     # ── Device auto-detection ───────────────────────────────────────────

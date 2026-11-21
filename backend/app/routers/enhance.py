@@ -8,7 +8,8 @@ import logging
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from PIL import Image
 
-from app.utils.image_utils import encode_image_base64, resize_for_model
+from app.config import config
+from app.utils.image_utils import encode_image_base64
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/enhance", tags=["enhance"])
@@ -38,12 +39,14 @@ async def enhance_image(request: Request, file: UploadFile = File(...)) -> dict:
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Invalid image data: {exc}")
 
-    image = resize_for_model(image)
+    original_size = image.size  # (w, h) – restored after enhancement
 
     # ── classify (offload to thread) ────────────────────────────────────
     classifier_service = request.app.state.classifier
     try:
-        degradation_type: str = await asyncio.to_thread(classifier_service.classify, image)
+        degradation_type, confidence = await asyncio.to_thread(
+            classifier_service.classify_with_confidence, image
+        )
     except Exception as exc:
         logger.error("Classification failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Classification error: {exc}")
@@ -58,11 +61,17 @@ async def enhance_image(request: Request, file: UploadFile = File(...)) -> dict:
         logger.error("Enhancement failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Enhancement error: {exc}")
 
+    # Generator works at 512x512; bring the result back to the input size
+    if enhanced_image.size != original_size:
+        enhanced_image = enhanced_image.resize(original_size, Image.LANCZOS)
+
     # ── response ────────────────────────────────────────────────────────
     encoded = encode_image_base64(enhanced_image, fmt="PNG")
 
     return {
         "classification": degradation_type,
+        "confidence": round(confidence, 4),
+        "low_confidence": confidence < config.CONFIDENCE_THRESHOLD,
         "enhanced_image_base64": encoded,
-        "original_size": list(image.size),
+        "original_size": list(original_size),
     }

@@ -1,86 +1,65 @@
-"""Enhancement service – wraps the three Pix2Pix generators."""
+"""Enhancement service – wraps the three pix2pix ``unet_256`` generators."""
 
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 import torch
 from PIL import Image
 
 from app.config import config
-from app.models.enhancement_model import Pix2PixGenerator
+from app.models.enhancement_model import UnetGenerator, build_generator
+from app.utils.checkpoint import load_weights
 from app.utils.image_utils import pil_to_tensor, tensor_to_pil
 
 logger = logging.getLogger(__name__)
 
 
 class EnhancerService:
-    """Loads the per-class Pix2Pix generators and exposes an ``enhance`` method.
-
-    Usage::
-
-        svc = EnhancerService()
-        svc.load()
-        enhanced = svc.enhance(pil_image, "rain")
-    """
+    """Loads the per-class generators and exposes ``enhance(image, degradation_type)``."""
 
     def __init__(self) -> None:
-        self.generators: dict[str, Pix2PixGenerator] = {}
-
-    # ── lifecycle ───────────────────────────────────────────────────────
+        self.generators: dict[str, UnetGenerator] = {}
+        self.weights_loaded: dict[str, bool] = {}
 
     def load(self) -> None:
-        """Load all three generator weight files and move models to the device."""
-        for class_name, weight_file in config.ENHANCER_WEIGHTS.items():
-            weights_path: Path = config.WEIGHTS_DIR / weight_file
-            generator = Pix2PixGenerator(in_channels=3, out_channels=3)
+        for name, cfg in config.ENHANCERS.items():
+            path = config.WEIGHTS_DIR / cfg["weights"]
+            gen = build_generator(cfg["norm"])
+            self.weights_loaded[name] = False
 
-            if weights_path.exists():
-                state_dict = torch.load(weights_path, map_location=config.DEVICE, weights_only=True)
-                generator.load_state_dict(state_dict)
-                logger.info("Loaded %s enhancer weights from %s", class_name, weights_path)
+            if path.exists():
+                load_weights(gen, path, config.DEVICE)
+                self.weights_loaded[name] = True
+                logger.info("Loaded %s enhancer (%s norm, %dpx) from %s", name, cfg["norm"], cfg["size"], path)
+            elif config.ALLOW_RANDOM_WEIGHTS:
+                logger.warning("%s enhancer weights missing at %s – RANDOM weights (dev mode)", name, path)
             else:
-                logger.warning(
-                    "%s enhancer weights not found at %s – running with random weights",
-                    class_name,
-                    weights_path,
+                raise FileNotFoundError(
+                    f"{name} enhancer weights not found: {path}. "
+                    "Copy your trained *_net_G.pth there or set ALLOW_RANDOM_WEIGHTS=1 for dev."
                 )
 
-            generator.to(config.DEVICE)
-            generator.eval()
-            self.generators[class_name] = generator
-
-    # ── inference ───────────────────────────────────────────────────────
+            gen.to(config.DEVICE).eval()
+            self.generators[name] = gen
 
     @torch.no_grad()
     def enhance(self, image: Image.Image, degradation_type: str) -> Image.Image:
-        """Enhance a degraded image using the appropriate Pix2Pix generator.
+        """Enhance *image* with the generator for *degradation_type*.
 
-        Args:
-            image: An RGB PIL Image (will be resized to 512×512).
-            degradation_type: One of ``"rain"``, ``"fog"``, or ``"low_light"``.
-
-        Returns:
-            An enhanced RGB PIL Image.
-
-        Raises:
-            ValueError: If *degradation_type* is not recognised.
-            RuntimeError: If :py:meth:`load` has not been called yet.
+        The image is run at that model's training resolution and the result is
+        resized back to the input image's size.
         """
         if not self.generators:
             raise RuntimeError("EnhancerService has not been loaded. Call load() first.")
-
         if degradation_type not in self.generators:
             raise ValueError(
-                f"Unknown degradation type '{degradation_type}'. "
-                f"Expected one of {list(self.generators.keys())}."
+                f"Unknown degradation type '{degradation_type}'. Expected one of {list(self.generators)}."
             )
 
-        generator = self.generators[degradation_type]
-
-        # Normalise to [-1, 1] for the generator
-        input_tensor: torch.Tensor = pil_to_tensor(image, normalize=True)
-        output_tensor: torch.Tensor = generator(input_tensor)
-
-        return tensor_to_pil(output_tensor)
+        size = config.ENHANCERS[degradation_type]["size"]
+        x = pil_to_tensor(image, normalize=True, size=size)   # [-1, 1], like pix2pix
+        out = tensor_to_pil(self.generators[degradation_type](x))
+        if out.size != image.size:
+            out = out.resize(image.size, Image.LANCZOS)
+        return out

@@ -1,136 +1,85 @@
-"""Pix2Pix U-Net Generator for 512×512 image enhancement."""
+"""``unet_256`` generator, identical to junyanz/pytorch-CycleGAN-and-pix2pix.
+
+Your three pix2pix runs (rain / low-light / fog) all used ``--netG unet_256
+--ngf 64 --input_nc 3 --output_nc 3`` and dropout enabled (``no_dropout False``).
+They differ only in ``--norm`` (batch for rain + low-light, instance for fog),
+which changes the layer biases and the saved keys – so the norm type MUST match
+the one used when each model was trained.
+
+Layer names/nesting (``model.model.1.model...``) are kept exactly as in the
+original repo so the ``*_net_G.pth`` files load with ``strict=True``.
+"""
 
 from __future__ import annotations
+
+import functools
 
 import torch
 import torch.nn as nn
 
 
-class UNetDown(nn.Module):
-    """Downsampling block: Conv2d (stride 2) → BatchNorm → LeakyReLU.
+def get_norm_layer(norm_type: str = "batch"):
+    if norm_type == "batch":
+        return functools.partial(nn.BatchNorm2d, affine=True, track_running_stats=True)
+    if norm_type == "instance":
+        return functools.partial(nn.InstanceNorm2d, affine=False, track_running_stats=False)
+    raise NotImplementedError(f"normalization layer [{norm_type}] is not found")
 
-    The first block in the encoder typically skips batch normalisation.
-    """
 
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        normalize: bool = True,
-    ) -> None:
+class UnetSkipConnectionBlock(nn.Module):
+    def __init__(self, outer_nc, inner_nc, input_nc=None, submodule=None,
+                 outermost=False, innermost=False, norm_layer=nn.BatchNorm2d,
+                 use_dropout=False):
         super().__init__()
-        layers: list[nn.Module] = [
-            nn.Conv2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1, bias=False),
-        ]
-        if normalize:
-            layers.append(nn.BatchNorm2d(out_channels))
-        layers.append(nn.LeakyReLU(0.2, inplace=True))
-        self.model = nn.Sequential(*layers)
+        self.outermost = outermost
+        if isinstance(norm_layer, functools.partial):
+            use_bias = norm_layer.func == nn.InstanceNorm2d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm2d
+        if input_nc is None:
+            input_nc = outer_nc
+        downconv = nn.Conv2d(input_nc, inner_nc, kernel_size=4, stride=2, padding=1, bias=use_bias)
+        downrelu = nn.LeakyReLU(0.2, True)
+        downnorm = norm_layer(inner_nc)
+        uprelu = nn.ReLU(True)
+        upnorm = norm_layer(outer_nc)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if outermost:
+            upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc, kernel_size=4, stride=2, padding=1)
+            model = [downconv] + [submodule] + [uprelu, upconv, nn.Tanh()]
+        elif innermost:
+            upconv = nn.ConvTranspose2d(inner_nc, outer_nc, kernel_size=4, stride=2, padding=1, bias=use_bias)
+            model = [downrelu, downconv] + [uprelu, upconv, upnorm]
+        else:
+            upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc, kernel_size=4, stride=2, padding=1, bias=use_bias)
+            model = [downrelu, downconv, downnorm] + [submodule] + [uprelu, upconv, upnorm]
+            if use_dropout:
+                model += [nn.Dropout(0.5)]
+        self.model = nn.Sequential(*model)
+
+    def forward(self, x):
+        if self.outermost:
+            return self.model(x)
+        return torch.cat([x, self.model(x)], 1)
+
+
+class UnetGenerator(nn.Module):
+    def __init__(self, input_nc=3, output_nc=3, num_downs=8, ngf=64,
+                 norm_layer=nn.BatchNorm2d, use_dropout=False):
+        super().__init__()
+        block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, submodule=None, norm_layer=norm_layer, innermost=True)
+        for _ in range(num_downs - 5):
+            block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, submodule=block, norm_layer=norm_layer, use_dropout=use_dropout)
+        block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, submodule=block, norm_layer=norm_layer)
+        block = UnetSkipConnectionBlock(ngf * 2, ngf * 4, submodule=block, norm_layer=norm_layer)
+        block = UnetSkipConnectionBlock(ngf, ngf * 2, submodule=block, norm_layer=norm_layer)
+        self.model = UnetSkipConnectionBlock(output_nc, ngf, input_nc=input_nc, submodule=block,
+                                             outermost=True, norm_layer=norm_layer)
+
+    def forward(self, x):
         return self.model(x)
 
 
-class UNetUp(nn.Module):
-    """Upsampling block: ConvTranspose2d (stride 2) → BatchNorm → ReLU → optional Dropout.
-
-    Skip connections are concatenated in the generator's forward method.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        dropout: bool = False,
-    ) -> None:
-        super().__init__()
-        layers: list[nn.Module] = [
-            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        ]
-        if dropout:
-            layers.append(nn.Dropout(0.5))
-        self.model = nn.Sequential(*layers)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
-
-
-class Pix2PixGenerator(nn.Module):
-    """U-Net generator for Pix2Pix image-to-image translation at 512×512.
-
-    Encoder path  (512 → 1):
-        3 → 64 → 128 → 256 → 512 → 512 → 512 → 512 → 512   (9 blocks)
-
-    Decoder path  (1 → 512) with skip connections:
-        mirrors the encoder, final output uses Tanh to produce 3-channel
-        images in [-1, 1].
-    """
-
-    def __init__(self, in_channels: int = 3, out_channels: int = 3) -> None:
-        """Initialise the U-Net generator.
-
-        Args:
-            in_channels: Number of input image channels.
-            out_channels: Number of output image channels.
-        """
-        super().__init__()
-
-        # ── Encoder ─────────────────────────────────────────────────────
-        self.down1 = UNetDown(in_channels, 64, normalize=False)  # 512→256
-        self.down2 = UNetDown(64, 128)                            # 256→128
-        self.down3 = UNetDown(128, 256)                           # 128→64
-        self.down4 = UNetDown(256, 512)                           # 64→32
-        self.down5 = UNetDown(512, 512)                           # 32→16
-        self.down6 = UNetDown(512, 512)                           # 16→8
-        self.down7 = UNetDown(512, 512)                           # 8→4
-        self.down8 = UNetDown(512, 512)                           # 4→2
-        self.down9 = UNetDown(512, 512, normalize=False)          # 2→1  (bottleneck)
-
-        # ── Decoder ─────────────────────────────────────────────────────
-        self.up1 = UNetUp(512, 512, dropout=True)                 # 1→2
-        self.up2 = UNetUp(1024, 512, dropout=True)                # 2→4
-        self.up3 = UNetUp(1024, 512, dropout=True)                # 4→8
-        self.up4 = UNetUp(1024, 512)                              # 8→16
-        self.up5 = UNetUp(1024, 512)                              # 16→32
-        self.up6 = UNetUp(1024, 256)                              # 32→64
-        self.up7 = UNetUp(512, 128)                               # 64→128
-        self.up8 = UNetUp(256, 64)                                # 128→256
-
-        self.final = nn.Sequential(
-            nn.ConvTranspose2d(128, out_channels, kernel_size=4, stride=2, padding=1),
-            nn.Tanh(),
-        )  # 256→512
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass with skip connections.
-
-        Args:
-            x: Input tensor of shape ``(B, 3, 512, 512)``.
-
-        Returns:
-            Output tensor of shape ``(B, 3, 512, 512)`` with values in [-1, 1].
-        """
-        # Encoder
-        d1 = self.down1(x)
-        d2 = self.down2(d1)
-        d3 = self.down3(d2)
-        d4 = self.down4(d3)
-        d5 = self.down5(d4)
-        d6 = self.down6(d5)
-        d7 = self.down7(d6)
-        d8 = self.down8(d7)
-        d9 = self.down9(d8)  # bottleneck
-
-        # Decoder with skip connections
-        u1 = self.up1(d9)
-        u2 = self.up2(torch.cat([u1, d8], dim=1))
-        u3 = self.up3(torch.cat([u2, d7], dim=1))
-        u4 = self.up4(torch.cat([u3, d6], dim=1))
-        u5 = self.up5(torch.cat([u4, d5], dim=1))
-        u6 = self.up6(torch.cat([u5, d4], dim=1))
-        u7 = self.up7(torch.cat([u6, d3], dim=1))
-        u8 = self.up8(torch.cat([u7, d2], dim=1))
-
-        return self.final(torch.cat([u8, d1], dim=1))
+def build_generator(norm: str = "batch") -> UnetGenerator:
+    """``unet_256`` generator exactly as built by the original repo's ``define_G``."""
+    return UnetGenerator(3, 3, 8, 64, norm_layer=get_norm_layer(norm), use_dropout=True)

@@ -5,3 +5,5 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 backend/outputs/*
 !backend/outputs/.gitkeep
+backend/app/weights/*.pth
+*.zip
