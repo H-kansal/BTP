@@ -36,6 +36,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link to="/image" className="hover:text-gray-900 transition-colors">
+                  Single Image Enhancement
+                </Link>
+              </li>
+              <li>
                 <Link to="/upload" className="hover:text-gray-900 transition-colors">
                   Video Upload Pipeline
                 </Link>

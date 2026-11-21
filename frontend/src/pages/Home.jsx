@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CloudRain, CloudFog, Moon, Radio, Sparkles, Check, ArrowRight } from "lucide-react";
+import { CloudRain, CloudFog, Moon, Radio, Sparkles, Check, ArrowRight, Image as ImageIcon, Upload, Camera } from "lucide-react";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("all");
-
   const components = [
     {
       id: "rain",
@@ -24,8 +22,8 @@ export default function Home() {
         "Skip-connections retain fine texture details",
         "Zero distortion of pedestrian & road signs",
       ],
-      link: "/upload",
-      buttonText: "TEST WITH RAIN VIDEO",
+      link: "/image",
+      buttonText: "ENHANCE RAIN IMAGE",
     },
     {
       id: "fog",
@@ -45,8 +43,8 @@ export default function Home() {
         "Avoids halo artifacts around headlights",
         "Normalizes atmospheric light distribution",
       ],
-      link: "/upload",
-      buttonText: "TEST WITH FOG VIDEO",
+      link: "/image",
+      buttonText: "ENHANCE FOG IMAGE",
     },
     {
       id: "lowlight",
@@ -66,8 +64,8 @@ export default function Home() {
         "Balanced color fidelity without yellow tint",
         "Enhances pedestrian & obstacle visibility",
       ],
-      link: "/upload",
-      buttonText: "TEST WITH NIGHT VIDEO",
+      link: "/image",
+      buttonText: "ENHANCE NIGHT IMAGE",
     },
     {
       id: "realtime",
@@ -105,19 +103,41 @@ export default function Home() {
           Adverse Weather Vision System
         </h1>
         <p className="text-gray-600 text-sm sm:text-base font-normal max-w-2xl mx-auto mb-8 leading-relaxed">
-          A dual-stage deep learning framework that automatically classifies weather degradation (rain, fog, low-light) using <strong>EfficientNet-B0</strong> and restores video frames via dedicated <strong>Pix2Pix U-Net</strong> generative adversarial networks.
+          A dual-stage deep learning framework that automatically classifies weather degradation (rain, fog, low-light) using <strong>EfficientNet-B0</strong> and restores frames via dedicated <strong>Pix2Pix U-Net</strong> generative adversarial networks.
         </p>
 
         {/* Technical Flow Badge */}
-        <div className="inline-flex flex-wrap items-center justify-center gap-2 px-4 py-2 rounded-xs bg-gray-50 border border-gray-200 text-xs text-gray-700 mb-2">
+        <div className="inline-flex flex-wrap items-center justify-center gap-2 px-4 py-2 rounded-xs bg-gray-50 border border-gray-200 text-xs text-gray-700 mb-6">
           <span className="font-semibold text-gray-900">Stage 1:</span> Condition Classification (EfficientNet-B0)
           <span className="text-gray-400">→</span>
           <span className="font-semibold text-gray-900">Stage 2:</span> Targeted GAN Restoration (Pix2Pix 512×512)
           <span className="text-gray-400">→</span>
-          <span className="font-semibold text-gray-900">Output:</span> Reconstructed Stream / Video
+          <span className="font-semibold text-gray-900">Output:</span> Clean Restored Visuals
         </div>
-        <div className="text-[11px] text-gray-400 font-medium mt-1">
-          Operates on pre-recorded video clips and live webcam streams
+
+        {/* 3 Main Action Portals */}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            to="/image"
+            className="btn-pastel-blue text-xs flex items-center gap-2 py-2.5 px-4"
+          >
+            <ImageIcon className="w-4 h-4" />
+            ENHANCE SINGLE IMAGE
+          </Link>
+          <Link
+            to="/upload"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xs border border-gray-300 text-xs font-semibold text-gray-800 hover:bg-gray-50 transition-colors uppercase tracking-wider"
+          >
+            <Upload className="w-4 h-4 text-gray-600" />
+            UPLOAD VIDEO FILE
+          </Link>
+          <Link
+            to="/realtime"
+            className="btn-pastel-green text-xs flex items-center gap-2 py-2.5 px-4"
+          >
+            <Camera className="w-4 h-4" />
+            START LIVE CAMERA
+          </Link>
         </div>
       </section>
 
@@ -241,10 +261,10 @@ export default function Home() {
             {/* Q1 */}
             <div>
               <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                Why use separate GANs instead of a single general model?
+                Can I enhance a single degraded image directly?
               </h3>
               <p className="text-xs text-gray-600 leading-relaxed">
-                Rain streaks, atmospheric fog, and low-light darkness require fundamentally different mathematical restorations. Rain requires directional streak removal, fog requires transmission map depth inversion, and low-light requires non-linear luminance amplification. Dedicated generators achieve significantly higher structural fidelity than a one-size-fits-all model.
+                Yes! Head to the <strong>Enhance Image</strong> page, upload any photo (JPG, PNG, WEBP), and the pipeline will automatically classify the degradation and return a side-by-side or interactive slider comparison with download options.
               </p>
             </div>
 

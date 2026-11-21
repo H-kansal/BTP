@@ -1,5 +1,5 @@
 import { NavLink, Link } from "react-router-dom";
-import { Eye, Upload, Camera } from "lucide-react";
+import { Eye, Upload, Camera, Image as ImageIcon } from "lucide-react";
 
 export default function Navbar() {
   return (
@@ -16,7 +16,7 @@ export default function Navbar() {
         </Link>
 
         {/* Center Nav Links */}
-        <div className="hidden md:flex items-center gap-8 text-xs font-medium text-gray-600">
+        <div className="hidden md:flex items-center gap-7 text-xs font-medium text-gray-600">
           <NavLink
             to="/"
             className={({ isActive }) =>
@@ -24,6 +24,14 @@ export default function Navbar() {
             }
           >
             Overview
+          </NavLink>
+          <NavLink
+            to="/image"
+            className={({ isActive }) =>
+              isActive ? "text-gray-950 font-semibold" : "hover:text-gray-950 transition-colors"
+            }
+          >
+            Enhance Image
           </NavLink>
           <NavLink
             to="/upload"
@@ -44,12 +52,19 @@ export default function Navbar() {
         </div>
 
         {/* Right CTA Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <Link
+            to="/image"
+            className="text-xs font-semibold text-gray-700 hover:text-gray-950 transition-colors px-2 py-1.5 flex items-center gap-1.5"
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+            Add Image
+          </Link>
           <Link
             to="/upload"
             className="text-xs font-semibold text-gray-700 hover:text-gray-950 transition-colors px-2 py-1.5"
           >
-            Upload Clip
+            Upload Video
           </Link>
           <Link
             to="/realtime"
