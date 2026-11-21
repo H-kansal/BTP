@@ -8,10 +8,7 @@ import {
   AlertCircle,
   Loader2,
   Sparkles,
-  Layers,
-  Cpu,
   Film,
-  Check,
 } from "lucide-react";
 import { uploadVideo, getJobStatus } from "../services/api";
 import ProgressBar from "../components/ProgressBar";
@@ -24,13 +21,12 @@ export default function VideoUpload() {
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [phase, setPhase] = useState("idle"); // idle | uploading | processing | done | error
+  const [phase, setPhase] = useState("idle");
   const [jobId, setJobId] = useState(null);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // ── File selection ──
   const handleFile = useCallback((f) => {
     if (!f) return;
     if (!f.type.startsWith("video/")) {
@@ -46,21 +42,10 @@ export default function VideoUpload() {
     (e) => {
       e.preventDefault();
       setDragging(false);
-      const dropped = e.dataTransfer?.files?.[0];
-      handleFile(dropped);
+      handleFile(e.dataTransfer?.files?.[0]);
     },
     [handleFile]
   );
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setDragging(false);
-  };
 
   const removeFile = () => {
     setFile(null);
@@ -71,58 +56,47 @@ export default function VideoUpload() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ── Upload ──
   const handleUpload = async () => {
     if (!file) return;
-
     setPhase("uploading");
     setUploadProgress(0);
     setErrorMessage("");
 
     try {
-      const res = await uploadVideo(file, (progress) => {
-        setUploadProgress(progress);
-      });
-
-      const id = res.data.job_id;
-      setJobId(id);
+      const res = await uploadVideo(file, (p) => setUploadProgress(p));
+      setJobId(res.job_id);
       setPhase("processing");
-      setStatusMessage("Frames extracted. Processing with deep learning models...");
+      setStatusMessage("Processing with deep learning models...");
     } catch (err) {
       setPhase("error");
       setErrorMessage(
-        err.response?.data?.detail || "Upload failed. Please check backend connection."
+        err.response?.data?.detail || "Upload failed. Check backend connection."
       );
     }
   };
 
-  // ── Polling status ──
   useEffect(() => {
     if (phase !== "processing" || !jobId) return;
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await getJobStatus(jobId);
-        const data = res.data;
-
+        const data = await getJobStatus(jobId);
         setProcessingProgress(data.progress || 0);
         setStatusMessage(data.message || "Processing video...");
 
         if (data.status === "done") {
           clearInterval(pollRef.current);
           setPhase("done");
-          setTimeout(() => {
-            navigate(`/results/${jobId}`);
-          }, 1200);
+          setTimeout(() => navigate(`/results/${jobId}`), 1200);
         } else if (data.status === "error") {
           clearInterval(pollRef.current);
           setPhase("error");
           setErrorMessage(data.error || "Video enhancement failed.");
         }
-      } catch (err) {
+      } catch {
         clearInterval(pollRef.current);
         setPhase("error");
-        setErrorMessage("Failed to check job status. Check backend connection.");
+        setErrorMessage("Failed to check job status.");
       }
     }, 2000);
 
@@ -137,37 +111,38 @@ export default function VideoUpload() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8 w-full">
-      {/* ── Page Header ── */}
-      <div className="mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold tracking-wide uppercase mb-3">
-          <Film className="w-3.5 h-3.5" />
-          Batch Enhancement Pipeline
-        </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">
-          Upload Video
+    <div className="max-w-5xl mx-auto px-6 w-full pt-10">
+      {/* Header with Serif Typography */}
+      <div className="mb-10 text-left">
+        <h1 className="font-editorial text-4xl sm:text-5xl font-normal text-gray-900 tracking-tight">
+          Batch Video Enhancement
         </h1>
-        <p className="text-slate-400 text-sm mt-1 max-w-xl">
-          Upload adverse weather footage to extract frames, classify atmospheric degradation,
-          and reconstruct enhanced video with Pix2Pix GANs.
+        <p className="text-gray-500 text-sm mt-2 max-w-xl">
+          Upload pre-recorded degraded video footage. The pipeline extracts frames, runs dual-stage classification, and reconstructs high-fidelity output.
         </p>
       </div>
 
-      {/* ── Main 2-Column Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Upload Interaction Area */}
+      {/* 2-col layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
+        {/* Left: Upload area */}
         <div className="lg:col-span-2 space-y-6">
           {/* Drop zone */}
           {phase === "idle" && !file && (
             <div
-              className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer ${
+              className={`border border-dashed rounded-sm p-14 text-center transition-all cursor-pointer ${
                 dragging
-                  ? "border-cyan-400 bg-cyan-500/10"
-                  : "border-slate-700/80 hover:border-slate-600 bg-slate-900/40 hover:bg-slate-900/70"
+                  ? "border-sky-500 bg-sky-50/50"
+                  : "border-gray-300 hover:border-gray-400 bg-gray-50/40 hover:bg-gray-50"
               }`}
               onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setDragging(false);
+              }}
               onClick={() => fileInputRef.current?.click()}
             >
               <input
@@ -177,163 +152,170 @@ export default function VideoUpload() {
                 className="hidden"
                 onChange={(e) => handleFile(e.target.files?.[0])}
               />
-              <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto mb-4 border border-cyan-500/20">
-                <Upload className="w-8 h-8" />
+              <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 border border-blue-100">
+                <Upload className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-1">
-                Drag and drop your video file here
+              <h3 className="font-editorial text-xl font-normal text-gray-900 mb-1">
+                Drag and drop your video file
               </h3>
-              <p className="text-sm text-slate-400 mb-4">
+              <p className="text-xs text-gray-400 mb-5">
                 or click to browse your computer
               </p>
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-800 text-xs text-slate-400 font-medium">
-                MP4, AVI, MOV supported (Up to 100MB)
+              <span className="inline-block px-3 py-1 rounded-xs bg-white border border-gray-200 text-[11px] text-gray-500 font-medium">
+                MP4, AVI, MOV supported (up to 100MB)
               </span>
             </div>
           )}
 
-          {/* File Selected Card */}
+          {/* File selected */}
           {file && phase === "idle" && (
-            <div className="glass-card p-6 border border-slate-800">
+            <div className="p-6 rounded-sm border border-gray-200 bg-white">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
-                  <FileVideo className="w-6 h-6 text-blue-400" />
+                <div className="w-11 h-11 rounded-sm bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                  <FileVideo className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{file.name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {file.name}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
                     {formatFileSize(file.size)} • {file.type || "Video file"}
                   </p>
                 </div>
                 <button
                   onClick={removeFile}
-                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                  title="Remove file"
+                  className="p-1.5 rounded-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-
               <button
                 onClick={handleUpload}
-                className="btn-primary w-full justify-center py-3 text-base"
+                className="btn-pastel-blue w-full block text-center py-3"
               >
-                <Upload className="w-4 h-4" />
-                Start Enhancement Pipeline
+                START ENHANCEMENT PIPELINE
               </button>
             </div>
           )}
 
-          {/* Uploading Phase */}
+          {/* Uploading */}
           {phase === "uploading" && (
-            <div className="glass-card p-6 space-y-4 border border-slate-800">
+            <div className="p-6 rounded-sm border border-gray-200 bg-white space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-                  <span className="text-sm font-semibold text-white">Uploading video...</span>
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                  <span className="text-sm font-semibold text-gray-900">
+                    Uploading video...
+                  </span>
                 </div>
-                <span className="text-xs text-cyan-400 font-mono">{uploadProgress}%</span>
+                <span className="text-xs text-blue-600 font-mono font-semibold">
+                  {uploadProgress}%
+                </span>
               </div>
-              <ProgressBar progress={uploadProgress} status="Uploading file to server" />
+              <ProgressBar progress={uploadProgress} status="Uploading" />
             </div>
           )}
 
-          {/* Processing Phase */}
+          {/* Processing */}
           {phase === "processing" && (
-            <div className="glass-card p-6 space-y-4 border border-slate-800">
+            <div className="p-6 rounded-sm border border-gray-200 bg-white space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                   <div>
-                    <span className="text-sm font-semibold text-white block">
-                      Enhancement in progress
+                    <span className="text-sm font-semibold text-gray-900 block">
+                      Enhancing video frames...
                     </span>
-                    <span className="text-xs text-slate-400">{statusMessage}</span>
+                    <span className="text-xs text-gray-400">
+                      {statusMessage}
+                    </span>
                   </div>
                 </div>
-                <span className="text-xs text-cyan-400 font-mono">{processingProgress}%</span>
+                <span className="text-xs text-blue-600 font-mono font-semibold">
+                  {processingProgress}%
+                </span>
               </div>
-              <ProgressBar progress={processingProgress} status="Extracting & Enhancing Frames" />
+              <ProgressBar
+                progress={processingProgress}
+                status="Extracting & Restoring"
+              />
             </div>
           )}
 
-          {/* Done Phase */}
+          {/* Done */}
           {phase === "done" && (
-            <div className="glass-card p-6 border border-emerald-500/30 bg-emerald-500/[0.04] text-center space-y-2">
-              <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-              <h4 className="text-base font-bold text-white">Processing Complete!</h4>
-              <p className="text-xs text-slate-400">
+            <div className="p-8 rounded-sm border border-emerald-200 bg-emerald-50/50 text-center space-y-2">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+              <h4 className="font-editorial text-xl font-normal text-gray-900">
+                Processing Complete!
+              </h4>
+              <p className="text-xs text-gray-500">
                 Redirecting to results view...
               </p>
             </div>
           )}
 
-          {/* Error Message */}
+          {/* Error */}
           {phase === "error" && (
-            <div className="glass-card p-6 border border-rose-500/30 bg-rose-500/[0.04] space-y-3">
-              <div className="flex items-center gap-3 text-rose-400">
+            <div className="p-6 rounded-sm border border-rose-200 bg-rose-50/50 space-y-3">
+              <div className="flex items-center gap-3 text-rose-600">
                 <AlertCircle className="w-5 h-5 shrink-0" />
-                <span className="text-sm font-semibold">Enhancement Error</span>
+                <span className="text-sm font-semibold">
+                  Processing Notice
+                </span>
               </div>
-              <p className="text-xs text-slate-300">{errorMessage}</p>
+              <p className="text-xs text-gray-600">{errorMessage}</p>
               <button
                 onClick={removeFile}
-                className="text-xs text-rose-400 underline hover:text-rose-300"
+                className="text-xs text-rose-600 underline hover:text-rose-700"
               >
-                Try again with another file
+                Try again with another clip
               </button>
             </div>
           )}
         </div>
 
-        {/* Right Column: Pipeline Specification Sidebar */}
+        {/* Right: Pipeline specs */}
         <div className="space-y-6">
-          <div className="glass-card p-6 border border-slate-800 space-y-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              Pipeline Specifications
+          <div className="p-6 rounded-sm border border-gray-200 bg-white space-y-4">
+            <h3 className="font-editorial text-xl font-normal text-gray-900">
+              Pipeline Specs
             </h3>
-
-            <div className="space-y-3 text-xs text-slate-400">
-              <div className="flex justify-between py-1.5 border-b border-slate-800">
-                <span>Extraction</span>
-                <span className="text-slate-200 font-medium">OpenCV 2 FPS</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-slate-800">
-                <span>Model Input</span>
-                <span className="text-slate-200 font-medium">512 × 512 px</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-slate-800">
-                <span>Classifier</span>
-                <span className="text-cyan-400 font-medium">EfficientNet-B0</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-slate-800">
-                <span>Generators</span>
-                <span className="text-cyan-400 font-medium">3× Pix2Pix U-Net</span>
-              </div>
-              <div className="flex justify-between py-1.5">
-                <span>Output Format</span>
-                <span className="text-slate-200 font-medium">MP4 Video & ZIP</span>
-              </div>
+            <div className="space-y-0 text-xs text-gray-500">
+              {[
+                ["Frame Extraction", "OpenCV @ Native FPS"],
+                ["Image Normalization", "512 × 512 px [-1, 1]"],
+                ["Classifier Backbone", "EfficientNet-B0"],
+                ["GAN Generators", "3× Pix2Pix U-Net"],
+                ["Output Container", "MP4 H.264 Video"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex justify-between py-2.5 border-b border-gray-100 last:border-0"
+                >
+                  <span>{label}</span>
+                  <span className="text-gray-900 font-medium">{value}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="glass-card p-6 border border-slate-800 space-y-3">
-            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+          <div className="p-6 rounded-sm border border-gray-200 bg-white space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-900">
               Automatic Route Selection
             </h4>
-            <div className="space-y-2 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                <span>Rain / Mist → Rain Dehazing GAN</span>
+            <div className="space-y-2.5 text-xs text-gray-500">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                <span>Rain → Pix2Pix Rain Dehazing GAN</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                <span>Dense Fog → Defogging GAN</span>
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-gray-400" />
+                <span>Fog → Pix2Pix Defogging GAN</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                <span>Low-Light → Luminance Restoration</span>
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                <span>Low-Light → Pix2Pix Luminance Restoration</span>
               </div>
             </div>
           </div>

@@ -8,10 +8,6 @@ import {
 } from "react";
 import { CameraOff } from "lucide-react";
 
-/**
- * Reusable camera feed component.
- * Handles getUserMedia, renders video, exposes captureFrame().
- */
 const CameraFeed = forwardRef(function CameraFeed(
   { width = 640, height = 480, facingMode = "environment", className = "" },
   ref
@@ -22,7 +18,6 @@ const CameraFeed = forwardRef(function CameraFeed(
   const [error, setError] = useState(null);
   const [isReady, setIsReady] = useState(false);
 
-  // Start camera
   const startCamera = useCallback(async () => {
     try {
       setError(null);
@@ -41,11 +36,8 @@ const CameraFeed = forwardRef(function CameraFeed(
         setIsReady(true);
       }
     } catch (err) {
-      console.error("Camera error:", err);
       if (err.name === "NotAllowedError") {
-        setError(
-          "Camera access denied. Please allow camera permissions in your browser settings."
-        );
+        setError("Camera access denied. Please allow permissions.");
       } else if (err.name === "NotFoundError") {
         setError("No camera found on this device.");
       } else {
@@ -54,7 +46,6 @@ const CameraFeed = forwardRef(function CameraFeed(
     }
   }, [width, height, facingMode]);
 
-  // Stop camera
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
@@ -63,7 +54,6 @@ const CameraFeed = forwardRef(function CameraFeed(
     setIsReady(false);
   }, []);
 
-  // Capture current frame as base64 JPEG
   const captureFrame = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -73,24 +63,16 @@ const CameraFeed = forwardRef(function CameraFeed(
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0);
-    // Return base64 without the data:image/jpeg;base64, prefix
     const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
     return dataUrl.split(",")[1];
   }, [isReady]);
 
-  // Expose methods to parent
   useImperativeHandle(
     ref,
-    () => ({
-      startCamera,
-      stopCamera,
-      captureFrame,
-      isReady,
-    }),
+    () => ({ startCamera, stopCamera, captureFrame, isReady }),
     [startCamera, stopCamera, captureFrame, isReady]
   );
 
-  // Start on mount
   useEffect(() => {
     startCamera();
     return stopCamera;
@@ -99,11 +81,14 @@ const CameraFeed = forwardRef(function CameraFeed(
   if (error) {
     return (
       <div
-        className={`flex flex-col items-center justify-center gap-4 p-8 rounded-xl bg-slate-800/50 border border-red-500/20 ${className}`}
+        className={`flex flex-col items-center justify-center gap-4 p-8 ${className}`}
       >
-        <CameraOff className="w-12 h-12 text-red-400" />
-        <p className="text-red-400 text-center text-sm max-w-md">{error}</p>
-        <button onClick={startCamera} className="btn-primary text-sm">
+        <CameraOff className="w-10 h-10 text-rose-400" />
+        <p className="text-rose-400 text-center text-sm max-w-md">{error}</p>
+        <button
+          onClick={startCamera}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold"
+        >
           Retry
         </button>
       </div>
@@ -117,11 +102,11 @@ const CameraFeed = forwardRef(function CameraFeed(
         autoPlay
         playsInline
         muted
-        className="w-full h-auto rounded-xl bg-black"
+        className="w-full h-auto bg-black"
       />
       <canvas ref={canvasRef} className="hidden" />
       {!isReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-xl">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-950/80">
           <div className="spinner" />
         </div>
       )}

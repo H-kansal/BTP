@@ -2,16 +2,11 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: "/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  headers: { "Content-Type": "application/json" },
 });
 
 /**
  * Upload a video file with progress tracking.
- * @param {File} file - The video file to upload.
- * @param {function} onProgress - Callback receiving progress percentage (0-100).
- * @returns {Promise<object>} Response data with job_id.
  */
 export async function uploadVideo(file, onProgress) {
   const formData = new FormData();
@@ -21,7 +16,9 @@ export async function uploadVideo(file, onProgress) {
     headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {
-        const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        const pct = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total
+        );
         onProgress(pct);
       }
     },
@@ -31,8 +28,6 @@ export async function uploadVideo(file, onProgress) {
 
 /**
  * Poll the processing status of a job.
- * @param {string} jobId
- * @returns {Promise<object>} { status, progress, message }
  */
 export async function getJobStatus(jobId) {
   const response = await api.get(`/upload/status/${jobId}`);
@@ -41,8 +36,6 @@ export async function getJobStatus(jobId) {
 
 /**
  * Fetch completed results for a job.
- * @param {string} jobId
- * @returns {Promise<object>} Results payload.
  */
 export async function getJobResults(jobId) {
   const response = await api.get(`/upload/results/${jobId}`);
@@ -51,8 +44,6 @@ export async function getJobResults(jobId) {
 
 /**
  * Enhance a single image file.
- * @param {File} file - The image file.
- * @returns {Promise<object>} { classification, enhanced_image }
  */
 export async function enhanceImage(file) {
   const formData = new FormData();
@@ -66,7 +57,6 @@ export async function enhanceImage(file) {
 
 /**
  * Create a WebSocket connection for real-time enhancement.
- * @returns {WebSocket}
  */
 export function createWebSocket() {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";

@@ -7,7 +7,6 @@ import {
   Clock,
   Layers,
   Play,
-  X,
   Loader2,
   AlertCircle,
 } from "lucide-react";
@@ -25,7 +24,11 @@ function classificationBadge(label) {
   } else if (lower.includes("fog") || lower.includes("haze")) {
     cls = "badge-fog";
     display = "Fog";
-  } else if (lower.includes("low") || lower.includes("light") || lower.includes("dark")) {
+  } else if (
+    lower.includes("low") ||
+    lower.includes("light") ||
+    lower.includes("dark")
+  ) {
     cls = "badge-low-light";
     display = "Low-Light";
   }
@@ -39,7 +42,7 @@ export default function Results() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedFrame, setSelectedFrame] = useState(null);
-  const [viewMode, setViewMode] = useState("slider"); // slider | side-by-side
+  const [viewMode, setViewMode] = useState("slider");
 
   useEffect(() => {
     let cancelled = false;
@@ -50,10 +53,11 @@ export default function Results() {
         const data = await getJobResults(jobId);
         if (!cancelled) setResults(data);
       } catch (err) {
-        console.error("Failed to fetch results:", err);
         if (!cancelled)
           setError(
-            err.response?.data?.detail || err.message || "Failed to load results."
+            err.response?.data?.detail ||
+              err.message ||
+              "Failed to load results."
           );
       } finally {
         if (!cancelled) setLoading(false);
@@ -70,8 +74,8 @@ export default function Results() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading results...</p>
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Loading results...</p>
         </div>
       </div>
     );
@@ -79,12 +83,17 @@ export default function Results() {
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <AlertCircle className="w-14 h-14 text-red-400 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Could not load results</h2>
-        <p className="text-slate-400 mb-6">{error}</p>
-        <Link to="/upload" className="btn-primary">
-          <ArrowLeft className="w-4 h-4" /> Back to Upload
+      <div className="max-w-2xl mx-auto px-6 py-20 text-center">
+        <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-4" />
+        <h2 className="font-editorial text-2xl font-normal text-gray-900 mb-2">
+          Could not load results
+        </h2>
+        <p className="text-gray-500 text-sm mb-6">{error}</p>
+        <Link
+          to="/upload"
+          className="btn-pastel-blue text-xs"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to Upload
         </Link>
       </div>
     );
@@ -94,33 +103,35 @@ export default function Results() {
   const frameList = frames || [];
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8 w-full fade-in">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
+    <div className="max-w-5xl mx-auto px-6 w-full fade-in pt-10 text-left">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
         <div>
           <Link
             to="/upload"
-            className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-cyan-400 transition-colors mb-3"
+            className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-900 transition-colors mb-3"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Upload
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Upload
           </Link>
-          <h1 className="text-3xl font-bold">Enhancement Results</h1>
+          <h1 className="font-editorial text-4xl sm:text-5xl font-normal text-gray-900 tracking-tight">
+            Enhancement Results
+          </h1>
         </div>
         {enhanced_video_url && (
           <a
             href={enhanced_video_url}
             download
-            className="btn-primary mt-4 sm:mt-0"
+            className="btn-pastel-green text-xs"
           >
-            <Download className="w-4 h-4" />
-            Download Enhanced Video
+            <Download className="w-3.5 h-3.5 mr-1.5" />
+            Download Video
           </a>
         )}
       </div>
 
-      {/* ── Video info cards ── */}
+      {/* Stats cards in Pastel border */}
       {video_info && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
           {[
             {
               icon: Clock,
@@ -143,70 +154,68 @@ export default function Results() {
               value: video_info.resolution || "512×512",
             },
           ].map((s) => (
-            <div key={s.label} className="glass-card p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <s.icon className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs text-slate-400">{s.label}</span>
+            <div
+              key={s.label}
+              className="p-5 rounded-sm border border-gray-200 bg-white"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <s.icon className="w-3.5 h-3.5 text-blue-600" />
+                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{s.label}</span>
               </div>
-              <p className="text-lg font-semibold">{s.value}</p>
+              <p className="font-editorial text-2xl font-normal text-gray-900">{s.value}</p>
             </div>
           ))}
         </div>
       )}
 
-      {/* ── Video comparison ── */}
+      {/* Video comparison */}
       {enhanced_video_url && results?.original_video_url && (
-        <section className="mb-12">
-          <h2 className="text-xl font-semibold mb-4">Video Comparison</h2>
+        <section className="mb-14">
+          <h2 className="font-editorial text-2xl font-normal text-gray-900 mb-4">
+            Video Comparison
+          </h2>
           <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-sm text-slate-400 mb-2">Original</p>
+            <div className="border border-gray-200 rounded-sm p-3 bg-white">
+              <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Original Input</p>
               <video
                 src={results.original_video_url}
                 controls
-                className="w-full rounded-xl bg-black"
+                className="w-full rounded-xs bg-black"
               />
             </div>
-            <div>
-              <p className="text-sm text-slate-400 mb-2">Enhanced</p>
+            <div className="border border-gray-200 rounded-sm p-3 bg-white">
+              <p className="text-xs font-semibold text-emerald-600 mb-2 uppercase tracking-wider">Pix2Pix Enhanced</p>
               <video
                 src={enhanced_video_url}
                 controls
-                className="w-full rounded-xl bg-black"
+                className="w-full rounded-xs bg-black"
               />
             </div>
           </div>
         </section>
       )}
 
-      {/* ── Frame-by-frame comparison ── */}
+      {/* Frame comparison */}
       {frameList.length > 0 && selectedFrame !== null && (
-        <section className="mb-12">
+        <section className="mb-14">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">
+            <h2 className="font-editorial text-2xl font-normal text-gray-900">
               Frame {selectedFrame + 1} Comparison
             </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setViewMode("slider")}
-                className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                  viewMode === "slider"
-                    ? "bg-cyan-500/20 text-cyan-400"
-                    : "text-slate-400 hover:text-slate-300"
-                }`}
-              >
-                Slider
-              </button>
-              <button
-                onClick={() => setViewMode("side-by-side")}
-                className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                  viewMode === "side-by-side"
-                    ? "bg-cyan-500/20 text-cyan-400"
-                    : "text-slate-400 hover:text-slate-300"
-                }`}
-              >
-                Side by Side
-              </button>
+            <div className="flex items-center gap-1 p-0.5 rounded-xs bg-gray-100 border border-gray-200 text-xs">
+              {["slider", "side-by-side"].map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider transition-colors rounded-xs ${
+                    viewMode === mode
+                      ? "bg-white text-gray-900 shadow-xs"
+                      : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  {mode === "slider" ? "Slider" : "Side by Side"}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -217,21 +226,21 @@ export default function Results() {
               label={`Classification: ${frameList[selectedFrame].classification}`}
             />
           ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-slate-400 mb-2">Original</p>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="border border-gray-200 rounded-sm p-3 bg-white">
+                <p className="text-xs text-gray-500 mb-2 font-semibold">Raw Input Frame</p>
                 <img
                   src={frameList[selectedFrame].original_url}
                   alt="Original"
-                  className="w-full rounded-xl"
+                  className="w-full rounded-xs border border-gray-100"
                 />
               </div>
-              <div>
-                <p className="text-sm text-slate-400 mb-2">Enhanced</p>
+              <div className="border border-gray-200 rounded-sm p-3 bg-white">
+                <p className="text-xs text-emerald-600 mb-2 font-semibold">Enhanced Frame</p>
                 <img
                   src={frameList[selectedFrame].enhanced_url}
                   alt="Enhanced"
-                  className="w-full rounded-xl"
+                  className="w-full rounded-xs border border-gray-100"
                 />
               </div>
             </div>
@@ -239,21 +248,21 @@ export default function Results() {
         </section>
       )}
 
-      {/* ── Frame grid ── */}
+      {/* Frame grid */}
       {frameList.length > 0 && (
-        <section>
-          <h2 className="text-xl font-semibold mb-4">
+        <section className="pb-8">
+          <h2 className="font-editorial text-2xl font-normal text-gray-900 mb-4">
             All Frames ({frameList.length})
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {frameList.map((frame, idx) => (
               <button
                 key={idx}
                 onClick={() => setSelectedFrame(idx)}
-                className={`group relative rounded-xl overflow-hidden border transition-all ${
+                className={`group relative rounded-sm overflow-hidden border transition-all ${
                   selectedFrame === idx
-                    ? "border-cyan-500 ring-2 ring-cyan-500/30"
-                    : "border-slate-700/30 hover:border-slate-600"
+                    ? "border-blue-600 ring-2 ring-blue-100"
+                    : "border-gray-200 hover:border-gray-400"
                 }`}
               >
                 <img
@@ -261,40 +270,30 @@ export default function Results() {
                   alt={`Frame ${idx + 1}`}
                   className="w-full aspect-video object-cover"
                 />
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                  <span className="text-xs text-white font-medium">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                  <span className="text-[11px] text-white font-medium">
                     Frame {idx + 1}
                   </span>
                 </div>
-                {/* Badge */}
                 {frame.classification && (
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute top-1.5 right-1.5">
                     {classificationBadge(frame.classification)}
                   </div>
                 )}
-                {/* Download button */}
                 {frame.enhanced_url && (
                   <a
                     href={frame.enhanced_url}
                     download={`frame_${idx + 1}_enhanced.png`}
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/50 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                    className="absolute bottom-1.5 right-1.5 p-1 rounded bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60"
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <Download className="w-3 h-3" />
                   </a>
                 )}
               </button>
             ))}
           </div>
         </section>
-      )}
-
-      {/* ── Full frame modal ── */}
-      {selectedFrame !== null && frameList[selectedFrame] && (
-        <div className="fixed inset-0 z-50 hidden">
-          {/* Intentionally not shown as full modal to keep UI simpler. The inline comparison above is used instead. */}
-        </div>
       )}
     </div>
   );

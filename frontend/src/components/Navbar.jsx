@@ -1,47 +1,62 @@
-import { NavLink } from "react-router-dom";
-import { Eye, Upload, Camera, Home } from "lucide-react";
-
-const links = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/upload", label: "Video Upload", icon: Upload },
-  { to: "/realtime", label: "Real-Time Camera", icon: Camera },
-];
+import { NavLink, Link } from "react-router-dom";
+import { Eye, Upload, Camera } from "lucide-react";
 
 export default function Navbar() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <NavLink to="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center transition-transform group-hover:scale-110">
-              <Eye className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold gradient-text hidden sm:block">
-              WeatherVision
-            </span>
-          </NavLink>
-
-          {/* Nav Links */}
-          <div className="flex items-center gap-1">
-            {links.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === "/"}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? "bg-cyan-500/15 text-cyan-400 shadow-sm shadow-cyan-500/10"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-                  }`
-                }
-              >
-                <Icon className="w-4 h-4" />
-                <span className="hidden md:inline">{label}</span>
-              </NavLink>
-            ))}
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100">
+      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        {/* Brand Logo - Pastel style with multi-color symbol */}
+        <Link to="/" className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-amber-400 via-sky-400 to-emerald-400 flex items-center justify-center shadow-xs">
+            <span className="w-2.5 h-2.5 rounded-full bg-white"></span>
           </div>
+          <span className="font-editorial text-2xl font-bold tracking-tight text-gray-900">
+            WeatherVision
+          </span>
+        </Link>
+
+        {/* Center Nav Links */}
+        <div className="hidden md:flex items-center gap-8 text-xs font-medium text-gray-600">
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              isActive ? "text-gray-950 font-semibold" : "hover:text-gray-950 transition-colors"
+            }
+          >
+            Overview
+          </NavLink>
+          <NavLink
+            to="/upload"
+            className={({ isActive }) =>
+              isActive ? "text-gray-950 font-semibold" : "hover:text-gray-950 transition-colors"
+            }
+          >
+            Video Upload
+          </NavLink>
+          <NavLink
+            to="/realtime"
+            className={({ isActive }) =>
+              isActive ? "text-gray-950 font-semibold" : "hover:text-gray-950 transition-colors"
+            }
+          >
+            Real-Time Stream
+          </NavLink>
+        </div>
+
+        {/* Right CTA Buttons */}
+        <div className="flex items-center gap-3">
+          <Link
+            to="/upload"
+            className="text-xs font-semibold text-gray-700 hover:text-gray-950 transition-colors px-2 py-1.5"
+          >
+            Upload Clip
+          </Link>
+          <Link
+            to="/realtime"
+            className="btn-pastel-green text-xs"
+          >
+            Start Camera
+          </Link>
         </div>
       </div>
     </nav>

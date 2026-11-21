@@ -82,9 +82,12 @@ app.mount("/outputs", StaticFiles(directory=str(config.OUTPUT_DIR)), name="outpu
 
 
 @app.get("/", tags=["health"])
+@app.get("/api", tags=["health"])
+@app.get("/api/health", tags=["health"])
 async def root() -> dict:
     """Health-check / welcome endpoint."""
     return {
+        "status": "ok",
         "message": "Adverse-Weather Enhancement API is running",
         "device": str(config.DEVICE),
     }

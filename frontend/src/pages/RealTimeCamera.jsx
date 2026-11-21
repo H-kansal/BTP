@@ -7,9 +7,6 @@ import {
   ImageDown,
   Gauge,
   Radio,
-  Sparkles,
-  RefreshCw,
-  AlertCircle,
 } from "lucide-react";
 import CameraFeed from "../components/CameraFeed";
 import { createWebSocket } from "../services/api";
@@ -20,7 +17,7 @@ export default function RealTimeCamera() {
   const timerRef = useRef(null);
 
   const [isActive, setIsActive] = useState(false);
-  const [wsStatus, setWsStatus] = useState("disconnected"); // disconnected | connecting | connected | error
+  const [wsStatus, setWsStatus] = useState("disconnected");
   const [enhancedFrame, setEnhancedFrame] = useState(null);
   const [classification, setClassification] = useState(null);
   const [fps, setFps] = useState(0);
@@ -28,7 +25,6 @@ export default function RealTimeCamera() {
   const fpsTimerRef = useRef(null);
   const framesInLastSec = useRef(0);
 
-  // ── FPS Counter ──
   useEffect(() => {
     if (isActive) {
       fpsTimerRef.current = setInterval(() => {
@@ -45,18 +41,14 @@ export default function RealTimeCamera() {
     };
   }, [isActive]);
 
-  // ── WebSocket & Frame Loop ──
   const startEnhancement = useCallback(() => {
     setWsStatus("connecting");
-
     const ws = createWebSocket();
     wsRef.current = ws;
 
     ws.onopen = () => {
       setWsStatus("connected");
       setIsActive(true);
-
-      // Send frame every 500ms (2 FPS)
       timerRef.current = setInterval(() => {
         if (!cameraRef.current) return;
         const base64 = cameraRef.current.captureFrame();
@@ -69,12 +61,8 @@ export default function RealTimeCamera() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.enhanced_frame) {
-          setEnhancedFrame(data.enhanced_frame);
-        }
-        if (data.classification) {
-          setClassification(data.classification);
-        }
+        if (data.enhanced_frame) setEnhancedFrame(data.enhanced_frame);
+        if (data.classification) setClassification(data.classification);
         framesInLastSec.current += 1;
         setFrameCount((prev) => prev + 1);
       } catch (e) {
@@ -82,8 +70,7 @@ export default function RealTimeCamera() {
       }
     };
 
-    ws.onerror = (err) => {
-      console.error("WebSocket error:", err);
+    ws.onerror = () => {
       setWsStatus("error");
       stopEnhancement();
     };
@@ -107,13 +94,8 @@ export default function RealTimeCamera() {
     setWsStatus("disconnected");
   }, []);
 
-  useEffect(() => {
-    return () => {
-      stopEnhancement();
-    };
-  }, [stopEnhancement]);
+  useEffect(() => () => stopEnhancement(), [stopEnhancement]);
 
-  // ── Snapshot ──
   const saveSnapshot = () => {
     if (!enhancedFrame) return;
     const link = document.createElement("a");
@@ -124,92 +106,89 @@ export default function RealTimeCamera() {
     link.click();
   };
 
-  const getBadgeStyle = (label) => {
+  const getBadge = (label) => {
     switch (label?.toLowerCase()) {
       case "rain":
-        return "text-blue-400 bg-blue-500/15 border-blue-500/30";
+        return "text-blue-700 bg-blue-50 border-blue-200";
       case "fog":
-        return "text-slate-300 bg-slate-500/15 border-slate-500/30";
+        return "text-gray-700 bg-gray-50 border-gray-200";
       case "low_light":
-        return "text-amber-400 bg-amber-500/15 border-amber-500/30";
+        return "text-amber-700 bg-amber-50 border-amber-200";
       default:
-        return "text-cyan-400 bg-cyan-500/15 border-cyan-500/30";
+        return "text-sky-700 bg-sky-50 border-sky-200";
     }
   };
 
+  const statusDot =
+    wsStatus === "connected"
+      ? "bg-emerald-500"
+      : wsStatus === "connecting"
+      ? "bg-amber-400 animate-pulse"
+      : wsStatus === "error"
+      ? "bg-rose-500"
+      : "bg-gray-300";
+
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8 w-full">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+    <div className="max-w-5xl mx-auto px-6 w-full pt-10">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 mb-10 text-left">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold tracking-wide uppercase mb-3">
-            <Radio className="w-3.5 h-3.5" />
-            Live WebSocket Inference (2 FPS)
-          </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Real-Time Camera
+          <h1 className="font-editorial text-4xl sm:text-5xl font-normal text-gray-900 tracking-tight">
+            Real-Time Camera Stream
           </h1>
-          <p className="text-slate-400 text-sm mt-1 max-w-xl">
-            Stream live video frames to the PyTorch backend for automated weather classification
-            and Pix2Pix U-Net image enhancement.
+          <p className="text-gray-500 text-sm mt-2 max-w-xl">
+            Stream live video frames via WebSocket to PyTorch for automated condition classification and Pix2Pix restoration at 2 FPS.
           </p>
         </div>
 
-        {/* Action Controls */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                wsStatus === "connected"
-                  ? "bg-emerald-400 animate-pulse"
-                  : wsStatus === "connecting"
-                  ? "bg-amber-400 animate-ping"
-                  : wsStatus === "error"
-                  ? "bg-rose-400"
-                  : "bg-slate-600"
-              }`}
-            />
-            <span className="text-slate-300 font-medium capitalize">{wsStatus}</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xs bg-white border border-gray-200 text-xs">
+            <span className={`w-2 h-2 rounded-full ${statusDot}`} />
+            <span className="text-gray-600 font-medium capitalize">
+              {wsStatus}
+            </span>
           </div>
 
           {!isActive ? (
-            <button onClick={startEnhancement} className="btn-primary text-sm py-2 px-4">
-              <Play className="w-4 h-4" />
-              Start Stream
+            <button
+              onClick={startEnhancement}
+              className="btn-pastel-green text-xs"
+            >
+              Start Camera
             </button>
           ) : (
             <button
               onClick={stopEnhancement}
-              className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 transition-colors flex items-center gap-2"
+              className="px-4 py-1.5 rounded-xs bg-rose-50 text-rose-600 border border-rose-200 font-semibold text-xs hover:bg-rose-100 transition-colors"
             >
-              <Square className="w-4 h-4" />
               Stop Stream
             </button>
           )}
         </div>
       </div>
 
-      {/* ── Real-Time Metrics Bar ── */}
+      {/* Metrics bar */}
       {isActive && (
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900/80 border border-slate-800 mb-6">
-          <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-sm bg-gray-50 border border-gray-200 mb-8 text-left">
+          <div className="flex items-center gap-8">
             <div className="flex items-center gap-2 text-xs">
-              <Gauge className="w-4 h-4 text-cyan-400" />
-              <span className="text-slate-400">Stream Rate:</span>
-              <span className="font-bold text-white font-mono">{fps || 2} FPS</span>
+              <Gauge className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-500">Rate:</span>
+              <span className="font-semibold text-gray-900 font-mono">
+                {fps || 2} FPS
+              </span>
             </div>
-
             <div className="flex items-center gap-2 text-xs">
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              <span className="text-slate-400">Frames Processed:</span>
-              <span className="font-bold text-white font-mono">{frameCount}</span>
+              <span className="text-gray-500">Frames:</span>
+              <span className="font-semibold text-gray-900 font-mono">
+                {frameCount}
+              </span>
             </div>
-
             {classification && (
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-400">Detected:</span>
+                <span className="text-gray-500">Detected:</span>
                 <span
-                  className={`font-bold px-2 py-0.5 rounded-full border text-[11px] uppercase ${getBadgeStyle(
+                  className={`font-semibold px-2 py-0.5 rounded-xs border text-[11px] uppercase ${getBadge(
                     classification
                   )}`}
                 >
@@ -218,50 +197,48 @@ export default function RealTimeCamera() {
               </div>
             )}
           </div>
-
           <button
             onClick={saveSnapshot}
             disabled={!enhancedFrame}
-            className="flex items-center gap-2 text-xs font-semibold text-cyan-400 hover:text-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
-            <ImageDown className="w-4 h-4" />
-            Snapshot Enhanced Frame
+            <ImageDown className="w-3.5 h-3.5" />
+            Snapshot Frame
           </button>
         </div>
       )}
 
-      {/* ── Video Feeds ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Original Camera Input */}
-        <div className="glass-card p-5 border border-slate-800 flex flex-col">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Camera className="w-4 h-4 text-slate-400" />
-              Raw Camera Feed
+      {/* Video feeds */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+        {/* Raw camera */}
+        <div className="rounded-sm border border-gray-200 overflow-hidden bg-white">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+            <div className="text-xs font-semibold text-gray-900">
+              Raw Input Feed
             </div>
-            <span className="text-[10px] font-bold text-slate-400 px-2 py-0.5 rounded bg-slate-800">
-              INPUT
+            <span className="text-[10px] font-semibold text-gray-400 px-1.5 py-0.5 rounded bg-gray-50 border border-gray-200">
+              WEBCAM
             </span>
           </div>
-
-          <div className="aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 relative flex items-center justify-center">
-            <CameraFeed ref={cameraRef} className="w-full h-full object-cover" />
+          <div className="aspect-video w-full bg-gray-100 flex items-center justify-center">
+            <CameraFeed
+              ref={cameraRef}
+              className="w-full h-full object-cover"
+            />
           </div>
         </div>
 
-        {/* Enhanced Model Output */}
-        <div className="glass-card p-5 border border-slate-800 flex flex-col">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Zap className="w-4 h-4 text-cyan-400" />
-              Pix2Pix Restored Output
+        {/* Enhanced output */}
+        <div className="rounded-sm border border-gray-200 overflow-hidden bg-white">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+            <div className="text-xs font-semibold text-gray-900">
+              Restored Output
             </div>
-            <span className="text-[10px] font-bold text-cyan-400 px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">
-              512 × 512 PX
+            <span className="text-[10px] font-semibold text-emerald-600 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200">
+              512 × 512 PIXELS
             </span>
           </div>
-
-          <div className="aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 relative flex items-center justify-center">
+          <div className="aspect-video w-full bg-gray-100 flex items-center justify-center">
             {enhancedFrame ? (
               <img
                 src={
@@ -269,19 +246,18 @@ export default function RealTimeCamera() {
                     ? enhancedFrame
                     : `data:image/jpeg;base64,${enhancedFrame}`
                 }
-                alt="Enhanced Output"
+                alt="Enhanced"
                 className="w-full h-full object-contain"
               />
             ) : (
-              <div className="text-center p-6 space-y-2">
-                <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center mx-auto">
-                  <Radio className="w-6 h-6" />
+              <div className="text-center p-8 space-y-2">
+                <div className="w-10 h-10 rounded-full bg-gray-200/60 text-gray-400 flex items-center justify-center mx-auto">
+                  <Radio className="w-5 h-5" />
                 </div>
-                <p className="text-sm font-medium text-slate-400">
-                  {isActive ? "Waiting for processed frames..." : "Start stream to view enhanced feed"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  Frames are classified & restored via WebSocket at 2 FPS
+                <p className="text-xs font-medium text-gray-500">
+                  {isActive
+                    ? "Waiting for processed frames..."
+                    : "Click 'Start Camera' to initiate stream"}
                 </p>
               </div>
             )}

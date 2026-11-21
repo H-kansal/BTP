@@ -1,12 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-/**
- * Interactive before/after slider comparison.
- * @param {{ originalSrc: string, enhancedSrc: string, label?: string }} props
- */
 export default function FrameComparison({ originalSrc, enhancedSrc, label }) {
   const containerRef = useRef(null);
-  const [position, setPosition] = useState(50); // percentage
+  const [position, setPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
 
   const updatePosition = useCallback((clientX) => {
@@ -29,29 +25,26 @@ export default function FrameComparison({ originalSrc, enhancedSrc, label }) {
 
   useEffect(() => {
     if (!isDragging) return;
-
-    const handlePointerMove = (e) => updatePosition(e.clientX);
-    const handlePointerUp = () => setIsDragging(false);
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
+    const handleMove = (e) => updatePosition(e.clientX);
+    const handleUp = () => setIsDragging(false);
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
     return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
     };
   }, [isDragging, updatePosition]);
 
   return (
     <div className="w-full">
       {label && (
-        <p className="text-sm text-slate-400 mb-2 text-center">{label}</p>
+        <p className="text-xs text-gray-400 mb-2.5 text-center font-medium uppercase tracking-wider">{label}</p>
       )}
       <div
         ref={containerRef}
-        className="comparison-container relative w-full"
+        className="comparison-container relative w-full rounded-sm overflow-hidden border border-gray-200"
         onPointerDown={handlePointerDown}
       >
-        {/* Enhanced (background, full) */}
         <img
           src={enhancedSrc}
           alt="Enhanced"
@@ -59,7 +52,6 @@ export default function FrameComparison({ originalSrc, enhancedSrc, label }) {
           draggable={false}
         />
 
-        {/* Original (clipped overlay) */}
         <div
           className="absolute top-0 left-0 h-full overflow-hidden"
           style={{ width: `${position}%` }}
@@ -73,19 +65,17 @@ export default function FrameComparison({ originalSrc, enhancedSrc, label }) {
           />
         </div>
 
-        {/* Slider line */}
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg shadow-white/30"
+          className="absolute top-0 bottom-0 w-0.5 bg-white shadow-sm"
           style={{ left: `${position}%`, transform: "translateX(-50%)" }}
         >
-          {/* Handle */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center cursor-ew-resize">
             <svg
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               viewBox="0 0 16 16"
               fill="none"
-              className="text-slate-700"
+              className="text-gray-700"
             >
               <path
                 d="M5 3L2 8L5 13M11 3L14 8L11 13"
@@ -98,12 +88,11 @@ export default function FrameComparison({ originalSrc, enhancedSrc, label }) {
           </div>
         </div>
 
-        {/* Labels */}
-        <div className="absolute top-3 left-3 badge bg-black/50 text-white backdrop-blur-sm text-xs">
-          Original
+        <div className="absolute top-3 left-3 bg-white/90 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded-xs shadow-xs border border-gray-200">
+          RAW DEGRADED
         </div>
-        <div className="absolute top-3 right-3 badge bg-cyan-500/70 text-white backdrop-blur-sm text-xs">
-          Enhanced
+        <div className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-xs shadow-xs">
+          PIX2PIX ENHANCED
         </div>
       </div>
     </div>
